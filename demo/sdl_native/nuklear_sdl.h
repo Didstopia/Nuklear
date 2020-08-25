@@ -70,11 +70,6 @@ nk_sdl_font_del(void)
     TTF_CloseFont(sdl.ttf_font);
 }
 
-static void nk_color_to_sdl_color(struct nk_color color)
-{
-    SDL_SetRenderDrawColor(sdl.renderer, color.r, color.g, color.b, color.a);
-}
-
 void sdl_draw_text(TTF_Font *font, const char *str, int x, int y, struct nk_color c) {
     SDL_Surface *surface = TTF_RenderText_Blended(font, str, (SDL_Color){c.r, c.g, c.b});
     SDL_Texture *texture = SDL_CreateTextureFromSurface(sdl.renderer, surface);
@@ -132,9 +127,13 @@ void sdl_draw_filled_polygon(const Sint16 *vx, const Sint16 *vy, int n, struct n
     filledPolygonRGBA(sdl.renderer, vx, vy, n, color.r, color.g, color.b, color.a);
 }
 
-void sdl_draw_image(struct nk_image *img, int x, int y, int w, int h) {
-    SDL_Texture *texture = img->handle.ptr;
-    SDL_RenderCopy(sdl.renderer, texture, NULL, &(SDL_Rect){x, y, w, h});
+void sdl_draw_image(const struct nk_command_image *image, int x, int y, int w, int h) {
+    
+    SDL_Texture *t = SDL_CreateTexture(sdl.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, w, h);
+    SDL_SetTextureColorMod(t, image->col.r,image->col.g, image->col.b);
+    SDL_QueryTexture(t, NULL, &image->img.handle.ptr, &w, &h);
+    SDL_UpdateTexture(t, &(SDL_Rect){x, y, w, h}, &image->img.handle.ptr, sizeof(*image->img.handle.ptr));
+    SDL_RenderCopy(sdl.renderer, t, NULL, &(SDL_Rect){x, y, w, h});
 }
 
 NK_API void
@@ -219,11 +218,11 @@ nk_sdl_render(void)
                 const struct nk_command_arc *a = (const struct nk_command_arc *)cmd;
                 sdl_draw_arc((float)a->cx, (float)a->cy, (float)a->r, a->a[0],a->a[1], a->color);
             }break;
-            case NK_COMMAND_RECT_MULTI_COLOR:
             case NK_COMMAND_IMAGE: {
                 const struct nk_command_image *i = (const struct nk_command_image *)cmd;
-                sdl_draw_image(&i->img, i->x, i->y, i->w, i->h);
+                sdl_draw_image(i, i->x, i->y, i->w, i->h);
             }break;
+            case NK_COMMAND_RECT_MULTI_COLOR:
             case NK_COMMAND_ARC_FILLED:
             default: break;
        }

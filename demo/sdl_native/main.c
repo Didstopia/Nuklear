@@ -145,10 +145,10 @@ int main(int argc, char *argv[])
                 nk_layout_row_dynamic(ctx, 120, 1);
                 bg = nk_color_picker(ctx, bg, NK_RGBA);
                 nk_layout_row_dynamic(ctx, 25, 1);
-                  bg.r = nk_propertyi(ctx, "#R:", 0, bg.r, 255, 1, 1);
-                  bg.g = nk_propertyi(ctx, "#G:", 0, bg.g, 255, 1, 1);
-                  bg.b = nk_propertyi(ctx, "#B:", 0, bg.b, 255, 1, 1);
-                  bg.a = nk_propertyi(ctx, "#A:", 0, bg.a, 255, 1, 1);
+                  bg.r = nk_propertyf(ctx, "#R:", 0, bg.r, 255, 1, 1);
+                  bg.g = nk_propertyf(ctx, "#G:", 0, bg.g, 255, 1, 1);
+                  bg.b = nk_propertyf(ctx, "#B:", 0, bg.b, 255, 1, 1);
+                  bg.a = nk_propertyf(ctx, "#A:", 0, bg.a, 255, 1, 1);
                 nk_combo_end(ctx);
             }
         }
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
         /* ----------------------------------------- */
 
         /* Draw */
-        SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
+        SDL_SetRenderDrawColor(renderer, bg.r*255, bg.g*255, bg.b*255, bg.a*255);
         SDL_RenderClear(renderer);
 
         nk_sdl_render();
