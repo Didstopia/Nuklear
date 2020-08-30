@@ -15,9 +15,9 @@
 #ifndef NK_SDL_H_
 #define NK_SDL_H_
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL.h>
+#include <SDL_ttf.h>
+#include <SDL2_gfxPrimitives.h>
 
 typedef struct NKSdlFont NKSdlFont;
 NK_API struct nk_context*   nk_sdl_init(SDL_Window *win, SDL_Renderer *renderer);
