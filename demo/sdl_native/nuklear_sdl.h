@@ -54,7 +54,9 @@ static struct nk_sdl {
 } sdl;
 
 NK_API void nk_sdl_font_create_from_file(const char *file_name, int font_size, int flags) {
-  TTF_Init();
+  if (TTF_Init() != 0) {
+    fprintf(stdout, "Unable to initialize SDL_TTF\n");
+  }
 
   sdl.ttf_font = TTF_OpenFont(file_name, font_size);
   if (sdl.ttf_font == NULL) {
@@ -287,6 +289,9 @@ static float nk_sdl_font_get_text_width(nk_handle handle, float height, const ch
 
 NK_API struct nk_context *nk_sdl_init(SDL_Window *win, SDL_Renderer *renderer) {
   // struct nk_user_font *font = &sdl.user_font;
+  if (sdl.user_font == NULL) {
+    sdl.user_font = (struct nk_user_font *)malloc(sizeof(struct nk_user_font));
+  }
   struct nk_user_font *font = sdl.user_font;
   font->userdata = nk_handle_ptr(sdl.ttf_font);
   font->height = TTF_FontHeight(sdl.ttf_font);
@@ -404,6 +409,7 @@ NK_API void nk_sdl_handle_event(SDL_Event *evt) {
 NK_API
 void nk_sdl_shutdown(void) {
   nk_free(&sdl.ctx);
+  free(sdl.user_font);
   nk_buffer_free(&sdl.cmds);
   memset(&sdl, 0, sizeof(sdl));
 }
