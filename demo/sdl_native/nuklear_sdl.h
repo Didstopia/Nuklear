@@ -54,9 +54,10 @@ static struct nk_sdl {
 } sdl;
 
 NK_API void nk_sdl_font_create_from_file(const char *file_name, int font_size, int flags) {
-  if (TTF_Init() != 0) {
-    fprintf(stdout, "Unable to initialize SDL_TTF\n");
-  }
+  // SDL_TTF should already be initialized outside of this library
+  // if (TTF_Init() != 0) {
+  //   fprintf(stdout, "Unable to initialize SDL_TTF\n");
+  // }
 
   sdl.ttf_font = TTF_OpenFont(file_name, font_size);
   if (sdl.ttf_font == NULL) {
