@@ -141,7 +141,7 @@ void sdl_draw_image(const struct nk_command_image *image, int x, int y, int w, i
   SDL_SetTextureColorMod(t, image->col.r, image->col.g, image->col.b);
 
   auto imageHandlePointer = image->img.handle.ptr;
-  auto imageHandlePointerCast = static_cast<int *>(imageHandlePointer);
+  auto imageHandlePointerCast = (int *)imageHandlePointer;
   // auto imageHandlePointerRef = &imageHandlePointerCast;
 
   const SDL_Rect destinationRect = SDL_Rect{x, y, w, h};
