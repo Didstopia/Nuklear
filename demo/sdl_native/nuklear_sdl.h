@@ -15,20 +15,22 @@
 #ifndef NK_SDL_H_
 #define NK_SDL_H_
 
-#ifdef SDL_INCLUDE_AT_ROOT 
+#ifdef SDL_INCLUDE_AT_ROOT
 #include <SDL.h>
 #include <SDL2_gfxPrimitives.h>
 #include <SDL_ttf.h>
 #else
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL2/SDL_ttf.h>
 #endif
 
 typedef struct NKSdlFont NKSdlFont;
 NK_API struct nk_context *nk_sdl_init(SDL_Window *win, SDL_Renderer *renderer);
-NK_API void nk_sdl_handle_event(SDL_Event *evt);
-NK_API void nk_sdl_render(void);
+NK_API int nk_sdl_handle_event(SDL_Event *evt);
+// NK_API void nk_sdl_render(void);
+NK_API void nk_sdl_render_begin(void);
+NK_API SDL_Texture *nk_sdl_render_end(void);
 NK_API void nk_sdl_shutdown(void);
 
 NK_API void nk_sdl_font_create_from_file(const char *file_name, int font_size, int flags);
@@ -48,9 +50,16 @@ NK_API void nk_sdl_font_del(void);
 #define NK_SDL_TEXT_MAX 256
 #endif
 
+struct nk_scale {
+  float x;
+  float y;
+};
+
 static struct nk_sdl {
   SDL_Window *win;
   SDL_Renderer *renderer;
+  SDL_Texture *target;
+  nk_scale scale = {0, 0};
   struct nk_context ctx;
   struct nk_buffer cmds;
   // font data
@@ -97,6 +106,37 @@ void sdl_draw_rect_fill(int x, int y, int w, int h, int rounding, struct nk_colo
                  color.b, color.a);
 }
 
+void interpolate_color(struct nk_color c1, struct nk_color c2, struct nk_color *result,
+                       float fraction) {
+  float r = c1.r + (c2.r - c1.r) * fraction;
+  float g = c1.g + (c2.g - c1.g) * fraction;
+  float b = c1.b + (c2.b - c1.b) * fraction;
+  float a = c1.a + (c2.a - c1.a) * fraction;
+
+  result->r = (nk_byte)NK_CLAMP(0, r, 255);
+  result->g = (nk_byte)NK_CLAMP(0, g, 255);
+  result->b = (nk_byte)NK_CLAMP(0, b, 255);
+  result->a = (nk_byte)NK_CLAMP(0, a, 255);
+}
+
+void sdl_draw_rect_fill_multicolor(int x, int y, int w, int h, struct nk_color left,
+                                   struct nk_color top, struct nk_color right,
+                                   struct nk_color bottom) {
+  struct nk_color X1, X2, Y;
+  float fraction_x, fraction_y;
+  int i, j;
+  for (j = 0; j < h; j++) {
+    fraction_y = ((float)j) / h;
+    for (i = 0; i < w; i++) {
+      fraction_x = ((float)i) / w;
+      interpolate_color(left, top, &X1, fraction_x);
+      interpolate_color(right, bottom, &X2, fraction_x);
+      interpolate_color(X1, X2, &Y, fraction_y);
+      pixelRGBA(sdl.renderer, x + i, y + j, Y.r, Y.g, Y.b, Y.a);
+    }
+  }
+}
+
 void sdl_draw_line(int x, int y, int x2, int y2, struct nk_color color) {
   lineRGBA(sdl.renderer, x, y, x2, y2, color.r, color.g, color.b, color.a);
 }
@@ -134,6 +174,10 @@ void sdl_draw_filled_polygon(const Sint16 *vx, const Sint16 *vy, int n, struct n
   filledPolygonRGBA(sdl.renderer, vx, vy, n, color.r, color.g, color.b, color.a);
 }
 
+void sdl_draw_bezier(const Sint16 *vx, const Sint16 *vy, int n, int s, struct nk_color color) {
+  bezierRGBA(sdl.renderer, vx, vy, n, s, color.r, color.g, color.b, color.a);
+}
+
 void sdl_draw_image(const struct nk_command_image *image, int x, int y, int w, int h) {
   SDL_Texture *t =
       SDL_CreateTexture(sdl.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STATIC, w, h);
@@ -154,48 +198,66 @@ void sdl_draw_image(const struct nk_command_image *image, int x, int y, int w, i
   SDL_RenderCopy(sdl.renderer, t, NULL, &destinationRect);
 }
 
-NK_API void nk_sdl_render(void) {
+NK_API void nk_sdl_render_begin(void) { SDL_SetRenderTarget(sdl.renderer, sdl.target); }
+
+// NK_API void nk_sdl_render(void) {
+// NK_API void nk_sdl_render_end(void) {
+NK_API SDL_Texture *nk_sdl_render_end(void) {
+  SDL_RenderClear(sdl.renderer);
   const struct nk_command *cmd;
   nk_foreach(cmd, &sdl.ctx) {
     //    Uint32 color; temporalmente no tiene uso.
     switch (cmd->type) {
       case NK_COMMAND_NOP: {
+        // Do nothing
       } break;
       case NK_COMMAND_SCISSOR: {
+        // FIXME: This works perfectly in OpenGL, but it's a few pixels off with Metal
+        // FIXME: (UPDATE) The clip rect size seems to be the same, so there's a
+        //        chance that it's NOT the clipping that's the issue, but the rendering?
+        //        Although disabling clipping will render perfectly fine, even on Metal..
         const struct nk_command_scissor *s = (const struct nk_command_scissor *)cmd;
         const SDL_Rect r = {(int)s->x, (int)s->y, (int)s->w, (int)s->h};
-        // SDL_RenderSetClipRect(sdl.renderer, &(SDL_Rect){(int)s->x, (int)s->y, (int)s->w,
-        // (int)s->h});
+        // SDL_RenderSetClipRect(sdl.renderer,
+        //                       &(SDL_Rect){(int)s->x, (int)s->y, (int)s->w, (int)s->h});
         SDL_RenderSetClipRect(sdl.renderer, &r);
+
       } break;
       case NK_COMMAND_LINE: {
+        // TODO: Missing line thickness
         const struct nk_command_line *l = (const struct nk_command_line *)cmd;
         sdl_draw_line((float)l->begin.x, (float)l->begin.y, (float)l->end.x, (float)l->end.y,
                       l->color);
       } break;
       case NK_COMMAND_RECT: {
+        // TODO: Missing line thickness
         const struct nk_command_rect *r = (const struct nk_command_rect *)cmd;
-        sdl_draw_rect(r->x, r->y, r->w, r->h, r->rounding, r->color);
+        sdl_draw_rect((float)r->x, (float)r->y, (float)r->w, (float)r->h, (float)r->rounding,
+                      r->color);
       } break;
       case NK_COMMAND_RECT_FILLED: {
+        // TODO: Missing line thickness
         const struct nk_command_rect_filled *r = (const struct nk_command_rect_filled *)cmd;
-        sdl_draw_rect_fill(r->x, r->y, r->w, r->h, r->rounding, r->color);
+        sdl_draw_rect_fill((float)r->x, (float)r->y, (float)r->w, (float)r->h, (float)r->rounding,
+                           r->color);
       } break;
       case NK_COMMAND_CIRCLE: {
+        // TODO: Missing line thickness
         const struct nk_command_circle *c = (const struct nk_command_circle *)cmd;
         int xr, yr;
-        xr = c->w / 2;
-        yr = c->h / 2;
+        xr = (float)c->w / 2;
+        yr = (float)c->h / 2;
         sdl_draw_ellipse(((float)(c->x)) + xr, ((float)c->y) + yr, xr, yr, c->color);
       } break;
       case NK_COMMAND_CIRCLE_FILLED: {
         const struct nk_command_circle_filled *c = (const struct nk_command_circle_filled *)cmd;
         int xr, yr;
-        xr = c->w / 2;
-        yr = c->h / 2;
+        xr = (float)c->w / 2;
+        yr = (float)c->h / 2;
         sdl_draw_ellipse_filled(((float)(c->x)) + xr, ((float)c->y) + yr, xr, yr, c->color);
       } break;
       case NK_COMMAND_TRIANGLE: {
+        // TODO: Missing line thickness
         const struct nk_command_triangle *t = (const struct nk_command_triangle *)cmd;
         sdl_draw_triangle((float)t->a.x, (float)t->a.y, (float)t->b.x, (float)t->b.y, (float)t->c.x,
                           (float)t->c.y, t->color);
@@ -206,6 +268,7 @@ NK_API void nk_sdl_render(void) {
                                  (float)t->c.x, (float)t->c.y, t->color);
       } break;
       case NK_COMMAND_POLYGON: {
+        // TODO: Missing line thickness
         const struct nk_command_polygon *p = (const struct nk_command_polygon *)cmd;
         int i;
         float vertices[p->point_count * 2];
@@ -233,29 +296,71 @@ NK_API void nk_sdl_render(void) {
                                 (int)p->point_count, p->color);
       } break;
       case NK_COMMAND_POLYLINE: {
+        // TODO: Missing line thickness
+        // FIXME: This is the same as NK_COMMAND_POLYGON, except this should have "line cap round",
+        //        while NK_COMMAND_POLYGON should have "line cap closed"
+        const struct nk_command_polyline *p = (const struct nk_command_polyline *)cmd;
+        int i;
+        float vertices[p->point_count * 2];
+        for (i = 0; i < p->point_count; i++) {
+          vertices[i * 2] = p->points[i].x;
+          vertices[(i * 2) + 1] = p->points[i].y;
+        }
+        sdl_draw_polyline((const Sint16 *)&vertices, (const Sint16 *)(2 * sizeof(Sint16)),
+                          (int)p->point_count, p->color);
       } break;
       case NK_COMMAND_TEXT: {
         const struct nk_command_text *t = (const struct nk_command_text *)cmd;
         TTF_Font *font = (TTF_Font *)t->font->userdata.ptr;
-        sdl_draw_text(font, (const char *)t->string, t->x, t->y, t->foreground);
+        sdl_draw_text(font, (const char *)t->string, (float)t->x, (float)t->y, t->foreground);
       } break;
       case NK_COMMAND_CURVE: {
+        // TODO: Missing line thickness
+        // FIXME: This is likely very much incorrect and broken (drawing a spline/curve)
+        const struct nk_command_curve *q = (const struct nk_command_curve *)cmd;
+        float points[8];
+        points[0] = (float)q->begin.x;
+        points[1] = (float)q->begin.y;
+        points[2] = (float)q->ctrl[0].x;
+        points[3] = (float)q->ctrl[0].y;
+        points[4] = (float)q->ctrl[1].x;
+        points[5] = (float)q->ctrl[1].y;
+        points[6] = (float)q->end.x;
+        points[7] = (float)q->end.y;
+        const int point_count = 8;
+        const int steps = 2;
+        sdl_draw_bezier((const Sint16 *)&points, (const Sint16 *)(2 * sizeof(Sint16)), point_count,
+                        steps, q->color);
       } break;
       case NK_COMMAND_ARC: {
+        // TODO: Missing line thickness
         const struct nk_command_arc *a = (const struct nk_command_arc *)cmd;
         sdl_draw_arc((float)a->cx, (float)a->cy, (float)a->r, a->a[0], a->a[1], a->color);
       } break;
       case NK_COMMAND_IMAGE: {
         const struct nk_command_image *i = (const struct nk_command_image *)cmd;
-        sdl_draw_image(i, i->x, i->y, i->w, i->h);
+        sdl_draw_image(i, (float)i->x, (float)i->y, (float)i->w, (float)i->h);
       } break;
-      case NK_COMMAND_RECT_MULTI_COLOR:
-      case NK_COMMAND_ARC_FILLED:
+      case NK_COMMAND_RECT_MULTI_COLOR: {
+        // FIXME: This needs to draw 4 rects, instead of just the one we're drawing right now
+        // FIXME: I bet we need this for the color picker..
+        const struct nk_command_rect_multi_color *r =
+            (const struct nk_command_rect_multi_color *)cmd;
+        sdl_draw_rect_fill_multicolor((float)r->x, (float)r->y, (float)r->w, (float)r->h, r->left,
+                                      r->top, r->right, r->bottom);
+      } break;
+      case NK_COMMAND_ARC_FILLED: {
+        // FIXME: This is likely incorrect (we're not filling it!)
+        const struct nk_command_arc *a = (const struct nk_command_arc *)cmd;
+        sdl_draw_arc((float)a->cx, (float)a->cy, (float)a->r, a->a[0], a->a[1], a->color);
+      } break;
       default:
         break;
     }
   }
   nk_clear(&sdl.ctx);
+  SDL_SetRenderTarget(sdl.renderer, NULL);
+  return sdl.target;
 }
 
 static void nk_sdl_clipboard_paste(nk_handle usr, struct nk_text_edit *edit) {
@@ -304,8 +409,26 @@ NK_API struct nk_context *nk_sdl_init(SDL_Window *win, SDL_Renderer *renderer) {
   font->height = TTF_FontHeight(sdl.ttf_font);
   font->width = nk_sdl_font_get_text_width;
 
+  // FIXME: This is not enough in case the window is resized or resolution changes!
+
+  // Get the renderer logical size (used for the target texture)
+  int w, h;
+  // SDL_GetWindowSize(win, &w, &h);
+  SDL_RenderGetLogicalSize(renderer, &w, &h);
+
+  // FIXME: Nuklear, scaling and mouse positions are still somewhat flaky
+  // (adjusting sliders is 50% off, due to 2x scaling)
+
+  // Get the renderer scale
+  SDL_RenderGetScale(renderer, &sdl.scale.x, &sdl.scale.y);
+
   sdl.win = win;
   sdl.renderer = renderer;
+  sdl.target =
+      SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+
+  // Enable alpha blending (transparency)
+  SDL_SetTextureBlendMode(sdl.target, SDL_BLENDMODE_BLEND);
 
   nk_init_default(&sdl.ctx, font);
   nk_buffer_init_default(&sdl.cmds);
@@ -317,20 +440,30 @@ NK_API struct nk_context *nk_sdl_init(SDL_Window *win, SDL_Renderer *renderer) {
   return &sdl.ctx;
 }
 
-NK_API void nk_sdl_handle_event(SDL_Event *evt) {
+NK_API int nk_sdl_handle_event(SDL_Event *evt) {
   struct nk_context *ctx = &sdl.ctx;
 
+  // FIXME: This doesn't work most of the time!
+  //        Events swallowed by our console?
+
   /* optional grabbing behavior */
-  if (ctx->input.mouse.grab) {
-    SDL_SetRelativeMouseMode(SDL_TRUE);
-    ctx->input.mouse.grab = 0;
-  } else if (ctx->input.mouse.ungrab) {
-    int x = (int)ctx->input.mouse.prev.x, y = (int)ctx->input.mouse.prev.y;
-    SDL_SetRelativeMouseMode(SDL_FALSE);
-    SDL_WarpMouseInWindow(sdl.win, x, y);
-    ctx->input.mouse.ungrab = 0;
-  }
+  // if (ctx->input.mouse.grab) {
+  //   // FIXME: This is almost never called?
+  //   SDL_SetRelativeMouseMode(SDL_TRUE);
+  //   SDL_ShowCursor(SDL_ENABLE);
+  //   ctx->input.mouse.grab = 0;
+  // } else if (ctx->input.mouse.ungrab) {
+  //   // FIXME: This is almost never called?
+  //   int x = (int)ctx->input.mouse.prev.x;
+  //   int y = (int)ctx->input.mouse.prev.y;
+  //   SDL_SetRelativeMouseMode(SDL_FALSE);
+  //   SDL_WarpMouseInWindow(sdl.win, x, y);
+  //   SDL_ShowCursor(SDL_ENABLE);
+  //   ctx->input.mouse.ungrab = 0;
+  // }
+
   if (evt->type == SDL_KEYUP || evt->type == SDL_KEYDOWN) {
+    // FIXME: This needs to handle more key events, I think?
     /* key events */
     int down = evt->type == SDL_KEYDOWN;
     const Uint8 *state = SDL_GetKeyboardState(0);
@@ -379,44 +512,64 @@ NK_API void nk_sdl_handle_event(SDL_Event *evt) {
       else
         nk_input_key(ctx, NK_KEY_LEFT, down);
     } else if (sym == SDLK_RIGHT) {
-      if (state[SDL_SCANCODE_LCTRL])
+      if (state[SDL_SCANCODE_LCTRL]) {
         nk_input_key(ctx, NK_KEY_TEXT_WORD_RIGHT, down);
-      else
+      } else {
         nk_input_key(ctx, NK_KEY_RIGHT, down);
+      }
+    } else {
+      return 0;
     }
+    return 1;
   } else if (evt->type == SDL_MOUSEBUTTONDOWN || evt->type == SDL_MOUSEBUTTONUP) {
     /* mouse button */
     int down = evt->type == SDL_MOUSEBUTTONDOWN;
-    const int x = evt->button.x, y = evt->button.y;
+    const int x = evt->button.x;
+    const int y = evt->button.y;
     if (evt->button.button == SDL_BUTTON_LEFT) {
-      if (evt->button.clicks > 1) nk_input_button(ctx, NK_BUTTON_DOUBLE, x, y, down);
+      if (evt->button.clicks > 1) {
+        nk_input_button(ctx, NK_BUTTON_DOUBLE, x, y, down);
+      }
+      // TODO: Do we even want this? Should this be entirely optional?
+      SDL_SetRelativeMouseMode(!down ? SDL_FALSE : SDL_TRUE);  // Hide/show cursor when dragging
       nk_input_button(ctx, NK_BUTTON_LEFT, x, y, down);
-    } else if (evt->button.button == SDL_BUTTON_MIDDLE)
+    } else if (evt->button.button == SDL_BUTTON_MIDDLE) {
       nk_input_button(ctx, NK_BUTTON_MIDDLE, x, y, down);
-    else if (evt->button.button == SDL_BUTTON_RIGHT)
+    } else if (evt->button.button == SDL_BUTTON_RIGHT) {
       nk_input_button(ctx, NK_BUTTON_RIGHT, x, y, down);
+    }
+    return 1;
   } else if (evt->type == SDL_MOUSEMOTION) {
     /* mouse motion */
     if (ctx->input.mouse.grabbed) {
-      int x = (int)ctx->input.mouse.prev.x, y = (int)ctx->input.mouse.prev.y;
+      int x = (int)ctx->input.mouse.prev.x;
+      int y = (int)ctx->input.mouse.prev.y;
+      // FIXME: Can we use this to fix the slider scaling issues?
       nk_input_motion(ctx, x + evt->motion.xrel, y + evt->motion.yrel);
-    } else
+    } else {
+      // FIXME: Can we use this to fix the slider scaling issues?
       nk_input_motion(ctx, evt->motion.x, evt->motion.y);
+    }
+    return 1;
   } else if (evt->type == SDL_TEXTINPUT) {
     /* text input */
     nk_glyph glyph;
     memcpy(glyph, evt->text.text, NK_UTF_SIZE);
     nk_input_glyph(ctx, glyph);
+    return 1;
   } else if (evt->type == SDL_MOUSEWHEEL) {
     /* mouse wheel */
     nk_input_scroll(ctx, nk_vec2((float)evt->wheel.x, (float)evt->wheel.y));
+    return 1;
   }
+  return 0;
 }
 
 NK_API
 void nk_sdl_shutdown(void) {
   nk_free(&sdl.ctx);
   free(sdl.user_font);
+  SDL_DestroyTexture(sdl.target);
   nk_buffer_free(&sdl.cmds);
   memset(&sdl, 0, sizeof(sdl));
 }
