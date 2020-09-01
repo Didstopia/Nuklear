@@ -120,6 +120,8 @@ int main(int argc, char *argv[])
         }
         nk_input_end(ctx);
 
+        nk_sdl_render_begin();
+
         /* GUI */
         if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
             NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
@@ -170,7 +172,8 @@ int main(int argc, char *argv[])
         SDL_SetRenderDrawColor(renderer, bg.r*255, bg.g*255, bg.b*255, bg.a*255);
         SDL_RenderClear(renderer);
 
-        nk_sdl_render();
+        // nk_sdl_render();
+        SDL_RenderCopyEx(renderer, nk_sdl_render_end(), NULL, NULL, 0, NULL, SDL_FLIP_NONE);
 
         SDL_RenderPresent(renderer);
     }

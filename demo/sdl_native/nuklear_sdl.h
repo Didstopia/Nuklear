@@ -59,7 +59,7 @@ static struct nk_sdl {
   SDL_Window *win;
   SDL_Renderer *renderer;
   SDL_Texture *target;
-  nk_scale scale = {0, 0};
+  struct nk_scale scale;
   struct nk_context ctx;
   struct nk_buffer cmds;
   // font data
