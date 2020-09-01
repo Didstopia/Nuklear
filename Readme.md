@@ -1,5 +1,7 @@
 # Nuklear
 
+**NOTE:** This is a fork of a fork, which aims to provide up-to-date compatibility with the latest SDL2 versions, as well as multiple rendering backends (OpenGL and Metal are actively tested).
+
 [![](https://github.com/Immediate-Mode-UI/Nuklear/workflows/C%2FC++%20CI/badge.svg )](https://github.com/Immediate-Mode-UI/Nuklear/actions)
 
 This is a minimal-state, immediate-mode graphical user interface toolkit
