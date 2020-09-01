@@ -15,16 +15,15 @@
 #ifndef NK_SDL_H_
 #define NK_SDL_H_
 
-#ifdef __linux__ 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL2_gfxPrimitives.h>
-#else
+#ifdef SDL_INCLUDE_AT_ROOT 
 #include <SDL.h>
 #include <SDL2_gfxPrimitives.h>
 #include <SDL_ttf.h>
+#else
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
 #endif
-
 
 typedef struct NKSdlFont NKSdlFont;
 NK_API struct nk_context *nk_sdl_init(SDL_Window *win, SDL_Renderer *renderer);
@@ -144,7 +143,7 @@ void sdl_draw_image(const struct nk_command_image *image, int x, int y, int w, i
   auto imageHandlePointerCast = (int *)imageHandlePointer;
   // auto imageHandlePointerRef = &imageHandlePointerCast;
 
-  const SDL_Rect destinationRect = SDL_Rect{x, y, w, h};
+  const SDL_Rect destinationRect = {x, y, w, h};
 
   // SDL_QueryTexture(t, NULL, &image->img.handle.ptr, &w, &h);
   SDL_QueryTexture(t, NULL, imageHandlePointerCast, &w, &h);
@@ -164,7 +163,7 @@ NK_API void nk_sdl_render(void) {
       } break;
       case NK_COMMAND_SCISSOR: {
         const struct nk_command_scissor *s = (const struct nk_command_scissor *)cmd;
-        const SDL_Rect r = SDL_Rect{(int)s->x, (int)s->y, (int)s->w, (int)s->h};
+        const SDL_Rect r = {(int)s->x, (int)s->y, (int)s->w, (int)s->h};
         // SDL_RenderSetClipRect(sdl.renderer, &(SDL_Rect){(int)s->x, (int)s->y, (int)s->w,
         // (int)s->h});
         SDL_RenderSetClipRect(sdl.renderer, &r);
