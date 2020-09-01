@@ -8,14 +8,25 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v1
-    - name: apt-update
-      run: sudo apt-get update -qq
-    - name: apt get glfw
-      run: sudo apt-get install -y --no-install-recommends libglfw3 libglfw3-dev libglew-dev
-    - name: build opengl2
-      run: make -C demo/glfw_opengl2
-    - name: build opengl3
-      run: make -C demo/glfw_opengl3
-    - name: build example
-      run: make -C example
+      - name: Checkout Repotisory
+        uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |-
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libglfw3 \
+            libglfw3-dev \
+            libglew-dev \
+            libsdl2-dev \
+            libsdl2-ttf-dev \
+            libsdl2-gfx-dev
+      - name: Build Demo (opengl2)
+        run: make -C demo/glfw_opengl2
+      - name: Build Demo (opengl3)
+        run: make -C demo/glfw_opengl3
+      - name: Build Demo (SDL)
+        run: make -C demo/sdl_native
+      - name: Build Example
+        run: make -C example
+      - name: Generate nuklear.h
+        run: cd src && ./paq.sh > ../nuklear.h
