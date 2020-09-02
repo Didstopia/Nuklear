@@ -28,7 +28,7 @@ jobs:
           cd dependencies/SDL2_gfx-1.0.4
           ./configure
           make
-          make install
+          sudo make install
       - name: Build Demo (SDL)
         run: make -C demo/sdl_native
       - name: Build Example
