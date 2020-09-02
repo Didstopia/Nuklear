@@ -82,8 +82,13 @@ int main(int argc, char *argv[])
     renderer = SDL_CreateRenderer(win, -1, 0);
     SDL_GetWindowSize(win, &win_width, &win_height);
 
+    /* SDL_ttf setup */
+    if (TTF_Init() != 0) {
+      fprintf(stdout, "Unable to initialize SDL_TTF\n");
+    }
+
     /* GUI */
-    nk_sdl_font_create_from_file("../../extra_font/Cousine-Regular.ttf", 13, 0);
+    nk_sdl_font_create_from_file("../../../extra_font/Cousine-Regular.ttf", 13, 0);
 
     ctx = nk_sdl_init(win, renderer);
 

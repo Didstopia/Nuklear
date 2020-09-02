@@ -6,3 +6,21 @@ docs/xml
 docs/build
 docs/src
 *.tmp
+
+# Configure/build files
+*.log
+*.status
+*.lo
+*.la
+*.o
+*.pc
+.deps/
+.libs/
+
+# SDL2_gfx
+dependencies/SDL2_gfx-1.0.4/libtool
+dependencies/SDL2_gfx-1.0.4/Makefile
+
+# OS temp files
+.DS_Store
+Thumbs.db
