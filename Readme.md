@@ -1,8 +1,8 @@
+[![](https://github.com/Didstopia/Nuklear/workflows/C%2FC++%20CI/badge.svg )](https://github.com/Didstopia/Nuklear/actions)
+
 # Nuklear
 
-**NOTE:** This is a fork of a fork, which aims to provide up-to-date compatibility with the latest SDL2 versions, as well as multiple rendering backends (OpenGL and Metal are actively tested).
-
-[![](https://github.com/Immediate-Mode-UI/Nuklear/workflows/C%2FC++%20CI/badge.svg )](https://github.com/Immediate-Mode-UI/Nuklear/actions)
+**NOTE:** This fork aims to provide up-to-date compatibility with the latest versions of SDL2, including support for multiple rendering backends (OpenGL and Metal are actively tested).
 
 This is a minimal-state, immediate-mode graphical user interface toolkit
 written in ANSI C and licensed under public domain. It was designed as a simple
@@ -14,6 +14,8 @@ layered library that tries to abstract over a number of platform and
 render backends, it focuses only on the actual UI.
 
 ## Features
+
+**NOTE:** These may or may not be up-to-date with the [original Nuklear project](https://github.com/Immediate-Mode-UI/Nuklear)!
 
 - Immediate-mode graphical user interface toolkit
 - Single-header library
@@ -44,6 +46,12 @@ The implementation mode requires defining the preprocessor macro
 ```
 IMPORTANT: Every time you include "nuklear.h" you have to define the same optional flags.
 This is very important; not doing it either leads to compiler errors, or even worse, stack corruptions.
+
+## Usage (fork specific)
+
+See the [example project](https://github.com/hbiblia/Nuklear/tree/master/demo/sdl_native) for more information.
+
+Note that the bundled version of `SDL2_gfx` should be used instead of any other publicly available versions, as the modifications made to this library are required for this fork to work properly.
 
 ## Gallery
 
@@ -93,41 +101,25 @@ nk_end(&ctx);
 ```
 ![example](https://cloud.githubusercontent.com/assets/8057201/10187981/584ecd68-675c-11e5-897c-822ef534a876.png)
 
-## Bindings
-There are a number of nuklear bindings for different languges created by other authors.
-I cannot attest for their quality since I am not necessarily proficient in any of these
-languages. Furthermore there are no guarantee that all bindings will always be kept up to date:
-
-- [Java](https://github.com/glegris/nuklear4j) by Guillaume Legris
-- [D](https://github.com/Timu5/bindbc-nuklear) by Mateusz Muszyński
-- [Golang](https://github.com/golang-ui/nuklear) by golang-ui@github.com
-- [Rust](https://github.com/snuk182/nuklear-rust) by snuk182@github.com
-- [Chicken](https://github.com/wasamasa/nuklear) by wasamasa@github.com
-- [Nim](https://github.com/zacharycarter/nuklear-nim) by zacharycarter@github.com
-- Lua
-  - [LÖVE-Nuklear](https://github.com/keharriso/love-nuklear) by Kevin Harrison
-  - [MoonNuklear](https://github.com/stetre/moonnuklear) by Stefano Trettel
-- Python
-  - [pyNuklear](https://github.com/billsix/pyNuklear) by William Emerison Six (ctypes-based wrapper)
-  - [pynk](https://github.com/nathanrw/nuklear-cffi) by nathanrw@github.com (cffi binding)
-- [CSharp/.NET](https://github.com/cartman300/NuklearDotNet) by cartman300@github.com
-- [V](https://github.com/nsauzede/vnk) by Nicolas Sauzede
-
 ## Credits
-Developed by Micha Mettke and every direct or indirect contributor to the GitHub.
 
+### Nuklear ([original](https://github.com/Immediate-Mode-UI/Nuklear))
 
-Embeds `stb_texedit`, `stb_truetype` and `stb_rectpack` by Sean Barrett (public domain)
-Embeds `ProggyClean.ttf` font by Tristan Grimmer (MIT license).
+- Nuklear was developed by Micha Mettke and every direct or indirect contributor to the GitHub
+- Embeds `stb_texedit`, `stb_truetype` and `stb_rectpack` by Sean Barrett (public domain)
+- Embeds `ProggyClean.ttf` font by Tristan Grimmer (MIT license).
+- Big thank you to Omar Cornut (ocornut@github) for his [imgui](https://github.com/ocornut/imgui) library and giving me the inspiration for this library, Casey Muratori for handmade hero and his original immediate-mode graphical user interface idea and Sean
+Barrett for his amazing single-header [libraries](https://github.com/nothings/stb) which restored my faith in libraries and brought me to create some of my own. Finally Apoorva Joshi for his single-header [file packer](http://apoorvaj.io/single-header-packer.html).
 
+### Nuklear (fork by [https://github.com/hbiblia](hbiblia))
 
-Big thank you to Omar Cornut (ocornut@github) for his [imgui](https://github.com/ocornut/imgui) library and
-giving me the inspiration for this library, Casey Muratori for handmade hero
-and his original immediate-mode graphical user interface idea and Sean
-Barrett for his amazing single-header [libraries](https://github.com/nothings/stb) which restored my faith
-in libraries and brought me to create some of my own. Finally Apoorva Joshi for his single-header [file packer](http://apoorvaj.io/single-header-packer.html).
+- SDL2 demo/implementation by Jhoson Ozuna(slam)
 
-## License
+### Nuklear ([this fork](https://github.com/Didstopia/Nuklear))
+
+## Licenses
+
+Original Nuklear license:
 ```
 ------------------------------------------------------------------------------
 This software is available under 2 licenses -- choose whichever you prefer.
@@ -170,38 +162,4 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -----------------------------------------------------------------------------
 ```
 
-## Reviewers guide
-
-When reviewing pull request there are common things a reviewer should keep
-in mind.
-
-Reviewing changes to `src/*` and `nuklear.h`:
-
-* Ensure C89 compatibility.
-* The code should work for several backends to an acceptable degree.
-* Check no other parts of `nuklear.h` are related to the PR and thus nothing is missing.
-* Recommend simple optimizations.
-  * Pass small structs by value instead of by pointer.
-  * Use local buffers over heap allocation when possible.
-* Check that the coding style is consistent with code around it.
-  * Variable/function name casing.
-  * Indentation.
-  * Curly bracket (`{}`) placement.
-* Ensure that the contributer have bumped the appropriate version in
-  [package.json](https://github.com/Immediate-Mode-UI/Nuklear/blob/master/package.json)
-  and added their changes to the
-  [CHANGELOG](https://github.com/Immediate-Mode-UI/Nuklear/blob/master/src/CHANGELOG).
-* Have at least one other person review the changes before merging.
-
-Reviewing changes to `demo/*`, `example/*` and other files in the repo:
-
-* Focus on getting working code merged.
-  * We want to make it easy for people to get started with Nuklear, and any
-    `demo` and `example` improvements helps in this regard.
-* Use of newer C features, or even other languages is not discouraged.
-  * If another language is used, ensure that the build process is easy to figure out.
-* Messy or less efficient code can be merged so long as these outliers are pointed out
-  and easy to find.
-* Version shouldn't be bumped for these changes.
-* Changes that improves code to be more inline with `nuklear.h` are ofc always welcome.
-
+Additional license terms may apply for the included `SDL2_gfx` library, which has been modified to better suit this library's needs.
